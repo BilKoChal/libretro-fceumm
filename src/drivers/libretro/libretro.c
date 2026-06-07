@@ -3109,12 +3109,13 @@ static void retro_run_blit(uint8_t *gfx)
 #endif
 }
 
-/* ---- Config-driven auto-load save state (Windows) ------------------- *
+/* ---- Config-driven auto-load save state (cross-platform) ------------ *
  * On the first frame after a ROM loads, the core reads a config file that
  * sits next to it and is named after it: e.g. "fceumm_libretro.cfg" beside
- * "fceumm_libretro.dll". If enabled, it loads:
+ * "fceumm_libretro.dll" (Windows) or "fceumm_libretro_android.cfg" beside
+ * "fceumm_libretro_android.so" (Android). If enabled, it loads:
  *
- *     <save_path>\<rom-name-without-extension>.<state_ext>
+ *     <save_path>/<rom-name-without-extension>.<state_ext>
  *
  * Example config (fceumm_libretro.cfg):
  *     enabled   = 1
@@ -3123,25 +3124,38 @@ static void retro_run_blit(uint8_t *gfx)
  *
  * A line "[autoload] ..." is written both to the RetroArch log and to
  * "autoload.log" beside the core, so problems are easy to diagnose.       */
+
 #ifdef _WIN32
 #include <windows.h>
 #include <time.h>
+#define AUTOLOAD_STRCASECMP _stricmp
+#define AUTOLOAD_MAX_PATH   MAX_PATH
+#define AUTOLOAD_PATH_SEP   '\\'
+#else
+#include <dlfcn.h>
+#include <time.h>
+#include <strings.h>
+#define AUTOLOAD_STRCASECMP strcasecmp
+#define AUTOLOAD_MAX_PATH   4096
+#define AUTOLOAD_PATH_SEP   '/'
+#endif
 
 #define AUTOLOAD_MAX_RUNS 25   /* keep only the latest N runs in autoload.log */
 #define AUTOLOAD_MAX_PATHS 16  /* max number of save_path entries in the config */
 
 static bool autoload_state_pending      = false;
-static char autoload_dir[MAX_PATH]      = {0};   /* folder the core .dll lives in */
-static char autoload_rom_path[MAX_PATH] = {0};   /* full path of the loaded ROM   */
+static char autoload_dir[AUTOLOAD_MAX_PATH]      = {0};   /* folder the core lives in */
+static char autoload_rom_path[AUTOLOAD_MAX_PATH] = {0};   /* full path of the loaded ROM   */
 static char autoload_core_name[64]      = {0};   /* this core's file name, no ext */
 
-/* Directory that THIS core (.dll) lives in. */
+/* Directory that THIS core (.dll/.so) lives in. */
 static void autoload_get_self_dir(char *out, size_t out_size)
 {
-   HMODULE hm = NULL;
-   char path[MAX_PATH];
-   char *slash;
    out[0] = '\0';
+#ifdef _WIN32
+   HMODULE hm = NULL;
+   char path[AUTOLOAD_MAX_PATH];
+   char *slash;
    if (!GetModuleHandleExA(
          GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -3153,15 +3167,28 @@ static void autoload_get_self_dir(char *out, size_t out_size)
    if (slash) *slash = '\0';
    strncpy(out, path, out_size - 1);
    out[out_size - 1] = '\0';
+#else
+   Dl_info info;
+   if (dladdr((const void *)&autoload_get_self_dir, &info) && info.dli_fname)
+   {
+      char *slash;
+      strncpy(out, info.dli_fname, out_size - 1);
+      out[out_size - 1] = '\0';
+      slash = strrchr(out, '/');
+      if (slash) *slash = '\0';
+   }
+#endif
 }
 
-/* This core's own file name, without directory or extension (e.g. "fceumm_libretro"). */
+/* This core's own file name, without directory or extension
+ * (e.g. "fceumm_libretro" or "fceumm_libretro_android"). */
 static void autoload_get_self_name(char *out, size_t out_size)
 {
-   HMODULE hm = NULL;
-   char path[MAX_PATH];
-   char *slash, *dot, *base;
    out[0] = '\0';
+#ifdef _WIN32
+   HMODULE hm = NULL;
+   char path[AUTOLOAD_MAX_PATH];
+   char *slash, *dot, *base;
    if (!GetModuleHandleExA(
          GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
          GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -3175,28 +3202,37 @@ static void autoload_get_self_name(char *out, size_t out_size)
    out[out_size - 1] = '\0';
    dot = strrchr(out, '.');
    if (dot) *dot = '\0';
-}
-static void autoload_get_self_cfg(char *out, size_t out_size)
-{
-   HMODULE hm = NULL;
-   char path[MAX_PATH];
-   char *slash, *dot;
-   out[0] = '\0';
-   if (!GetModuleHandleExA(
-         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-         GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-         (LPCSTR)&autoload_get_self_cfg, &hm))
-      return;
-   if (!GetModuleFileNameA(hm, path, sizeof(path)))
-      return;
-   slash = strrchr(path, '\\');
-   dot   = strrchr(path, '.');
-   if (dot && (!slash || dot > slash))
-      *dot = '\0';                 /* strip ".dll" */
-   snprintf(out, out_size, "%s.cfg", path);
+#else
+   Dl_info info;
+   if (dladdr((const void *)&autoload_get_self_name, &info) && info.dli_fname)
+   {
+      char *slash, *dot, *base;
+      strncpy(out, info.dli_fname, out_size - 1);
+      out[out_size - 1] = '\0';
+      slash = strrchr(out, '/');
+      base  = slash ? slash + 1 : out;
+      if (base != out) memmove(out, base, strlen(base) + 1);
+      dot = strrchr(out, '.');
+      if (dot) *dot = '\0';
+   }
+#endif
 }
 
-/* Write a line to autoload.log next to the .dll AND to the RetroArch log. */
+/* Build the config file path: <core_dir>/<core_name_without_ext>.cfg */
+static void autoload_get_self_cfg(char *out, size_t out_size)
+{
+   char name[64];
+   out[0] = '\0';
+   autoload_get_self_name(name, sizeof(name));
+   if (name[0] == '\0')
+      return;
+   if (autoload_dir[0] != '\0')
+      snprintf(out, out_size, "%s%c%s.cfg", autoload_dir, AUTOLOAD_PATH_SEP, name);
+   else
+      snprintf(out, out_size, "%s.cfg", name);
+}
+
+/* Write a line to autoload.log next to the core AND to the RetroArch log. */
 static void autoload_logf(const char *fmt, ...)
 {
    char    line[1024];
@@ -3210,9 +3246,9 @@ static void autoload_logf(const char *fmt, ...)
 
    if (autoload_dir[0] != '\0')
    {
-      char logpath[MAX_PATH + 32];
+      char logpath[AUTOLOAD_MAX_PATH + 32];
       FILE *fp;
-      snprintf(logpath, sizeof(logpath), "%s\\autoload.log", autoload_dir);
+      snprintf(logpath, sizeof(logpath), "%s%cautoload.log", autoload_dir, AUTOLOAD_PATH_SEP);
       fp = fopen(logpath, "a");
       if (fp) { fprintf(fp, "%s\n", line); fclose(fp); }
    }
@@ -3222,7 +3258,7 @@ static void autoload_logf(const char *fmt, ...)
  * Runs are delimited by lines beginning with "--- autoload run ---". */
 static void autoload_log_rotate(int keep_runs)
 {
-   char        logpath[MAX_PATH + 32];
+   char        logpath[AUTOLOAD_MAX_PATH + 32];
    const char *marker = "--- autoload run ---";
    FILE       *fp;
    long        fsize;
@@ -3232,7 +3268,7 @@ static void autoload_log_rotate(int keep_runs)
 
    if (autoload_dir[0] == '\0')
       return;
-   snprintf(logpath, sizeof(logpath), "%s\\autoload.log", autoload_dir);
+   snprintf(logpath, sizeof(logpath), "%s%cautoload.log", autoload_dir, AUTOLOAD_PATH_SEP);
 
    fp = fopen(logpath, "rb");
    if (!fp)
@@ -3271,7 +3307,7 @@ typedef struct
 {
    bool enabled;
    int  num_paths;
-   char save_paths[AUTOLOAD_MAX_PATHS][MAX_PATH];
+   char save_paths[AUTOLOAD_MAX_PATHS][AUTOLOAD_MAX_PATH];
    char state_ext[64];
 } autoload_config;
 
@@ -3314,21 +3350,21 @@ static bool autoload_read_config(const char *cfg_path, autoload_config *cfg)
       autoload_trim(key);
       autoload_trim(val);
 
-      if (_stricmp(key, "enabled") == 0)
-         cfg->enabled = (_stricmp(val, "1")    == 0 ||
-                         _stricmp(val, "true") == 0 ||
-                         _stricmp(val, "yes")  == 0 ||
-                         _stricmp(val, "on")   == 0);
-      else if (_stricmp(key, "save_path") == 0)
+      if (AUTOLOAD_STRCASECMP(key, "enabled") == 0)
+         cfg->enabled = (AUTOLOAD_STRCASECMP(val, "1")    == 0 ||
+                         AUTOLOAD_STRCASECMP(val, "true") == 0 ||
+                         AUTOLOAD_STRCASECMP(val, "yes")  == 0 ||
+                         AUTOLOAD_STRCASECMP(val, "on")   == 0);
+      else if (AUTOLOAD_STRCASECMP(key, "save_path") == 0)
       {
          if (cfg->num_paths < AUTOLOAD_MAX_PATHS && *val)
          {
-            strncpy(cfg->save_paths[cfg->num_paths], val, MAX_PATH - 1);
-            cfg->save_paths[cfg->num_paths][MAX_PATH - 1] = '\0';
+            strncpy(cfg->save_paths[cfg->num_paths], val, AUTOLOAD_MAX_PATH - 1);
+            cfg->save_paths[cfg->num_paths][AUTOLOAD_MAX_PATH - 1] = '\0';
             cfg->num_paths++;
          }
       }
-      else if (_stricmp(key, "state_ext") == 0)
+      else if (AUTOLOAD_STRCASECMP(key, "state_ext") == 0)
       {
          if (*val == '.') val++;            /* accept "state" or ".state" */
          if (*val)
@@ -3402,9 +3438,9 @@ static bool autoload_extract_rastate(const uint8_t *file, size_t file_len,
 static void autoload_try_load_state(void)
 {
    autoload_config cfg;
-   char            cfg_path[MAX_PATH];
-   char            romname[MAX_PATH];
-   char            file[MAX_PATH * 3];
+   char            cfg_path[AUTOLOAD_MAX_PATH];
+   char            romname[AUTOLOAD_MAX_PATH];
+   char            file[AUTOLOAD_MAX_PATH * 3];
    void           *buf        = NULL;
    int64_t         len        = 0;
    size_t          expected   = retro_serialize_size();
@@ -3417,7 +3453,7 @@ static void autoload_try_load_state(void)
    {
       if (log_cb.log)
          log_cb.log(RETRO_LOG_WARN,
-               "[autoload] could not resolve core .dll directory\n");
+               "[autoload] could not resolve core directory\n");
       return;
    }
 
@@ -3432,7 +3468,7 @@ static void autoload_try_load_state(void)
       else    ts[0] = '\0';
       autoload_logf("--- autoload run --- core=%s  %s", autoload_core_name, ts);
    }
-   autoload_logf("dll directory : %s", autoload_dir);
+   autoload_logf("core directory : %s", autoload_dir);
 
    autoload_get_self_cfg(cfg_path, sizeof(cfg_path));
    autoload_logf("config file   : %s", cfg_path);
@@ -3480,7 +3516,7 @@ static void autoload_try_load_state(void)
                 (sp[plen-1] == '\\' || sp[plen-1] == '/'))
             sp[plen-1] = '\0';
 
-         snprintf(file, sizeof(file), "%s\\%s.%s", sp, romname, cfg.state_ext);
+         snprintf(file, sizeof(file), "%s%c%s.%s", sp, AUTOLOAD_PATH_SEP, romname, cfg.state_ext);
          autoload_logf("trying        : %s", file);
 
          if (filestream_read_file(file, &buf, &len))
@@ -3530,7 +3566,6 @@ static void autoload_try_load_state(void)
    if (buf)
       free(buf);
 }
-#endif
 
 void retro_run(void)
 {
@@ -3538,13 +3573,11 @@ void retro_run(void)
    int32_t ssize = 0;
    bool updated  = false;
 
-#ifdef _WIN32
    if (autoload_state_pending)
    {
       autoload_state_pending = false;
       autoload_try_load_state();
    }
-#endif
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables(false);
@@ -4342,7 +4375,6 @@ bool retro_load_game(const struct retro_game_info *info)
    mmaps.num_descriptors = i;
    environ_cb(RETRO_ENVIRONMENT_SET_MEMORY_MAPS, &mmaps);
 
-#ifdef _WIN32
    /* Remember the ROM path and defer the auto-load to the first frame. */
    autoload_rom_path[0] = '\0';
    if (info && info->path)
@@ -4351,7 +4383,6 @@ bool retro_load_game(const struct retro_game_info *info)
       autoload_rom_path[sizeof(autoload_rom_path) - 1] = '\0';
    }
    autoload_state_pending = true;
-#endif
 
    return true;
 }
