@@ -123,9 +123,10 @@ jobs:
   # ------------------------------------------------------------------ #
   # Android — arm64-v8a / armeabi-v7a / x86_64                        #
   #                                                                    #
-  # Cross-compiles with the NDK Clang toolchain via Makefile.libretro.#
-  # After build, we find the produced .so (name varies by platform    #
-  # string) and copy it to a known output name before uploading.      #
+  # The fceumm Makefile.libretro has no "android" platform case;      #
+  # it falls through to unix. We use platform=unix with the NDK       #
+  # Clang toolchain overriding CC/CXX, and override SHARED to drop    #
+  # the version-script (Android linker does not support it).          #
   # ------------------------------------------------------------------ #
   build-android:
     name: Android ${{ matrix.abi }}
@@ -167,31 +168,27 @@ jobs:
       - name: Build
         run: |
           TOOLCHAIN=${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64
+          CC="${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${{ env.ANDROID_API }}-clang"
+          CXX="${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${{ env.ANDROID_API }}-clang++"
+          AR="${TOOLCHAIN}/bin/llvm-ar"
+          RANLIB="${TOOLCHAIN}/bin/llvm-ranlib"
+          STRIP="${TOOLCHAIN}/bin/llvm-strip"
+
+          # platform=unix sets TARGET=fceumm_libretro.so and fpic=-fPIC
+          # We override SHARED: Android linker doesn't support --version-script
           make -f Makefile.libretro \
-            platform=android \
-            CC="${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${{ env.ANDROID_API }}-clang" \
-            CXX="${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${{ env.ANDROID_API }}-clang++" \
-            AR="${TOOLCHAIN}/bin/llvm-ar" \
-            RANLIB="${TOOLCHAIN}/bin/llvm-ranlib" \
-            STRIP="${TOOLCHAIN}/bin/llvm-strip" \
+            platform=unix \
+            CC="$CC" \
+            CXX="$CXX" \
+            AR="$AR" \
+            RANLIB="$RANLIB" \
+            STRIP="$STRIP" \
+            SHARED="-shared -fPIC" \
             -j$(nproc)
 
-      # The Makefile may name the output differently depending on the
-      # platform string (e.g. fceumm_libretro_android.so or similar).
-      # Find it, print it so it appears in the log, then copy to a
-      # stable name that the upload step can rely on.
-      - name: Locate and stage artifact
+      - name: Stage artifact
         run: |
-          echo "--- all .so files after build ---"
-          find . -maxdepth 2 -name "*.so" | sort
-          echo "---------------------------------"
-          SO=$(find . -maxdepth 2 -name "*.so" | head -1)
-          if [ -z "$SO" ]; then
-            echo "ERROR: no .so produced by the build"
-            exit 1
-          fi
-          cp "$SO" fceumm_libretro_${{ matrix.artifact_suffix }}.so
-          echo "Staged: $SO → fceumm_libretro_${{ matrix.artifact_suffix }}.so"
+          cp fceumm_libretro.so fceumm_libretro_${{ matrix.artifact_suffix }}.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
