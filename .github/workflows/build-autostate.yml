@@ -121,7 +121,11 @@ jobs:
           path: fceumm_libretro.so
 
   # ------------------------------------------------------------------ #
-  # Android — three ABI jobs sharing the same NDK setup via a matrix  #
+  # Android — arm64-v8a / armeabi-v7a / x86_64                        #
+  #                                                                    #
+  # Uses ndk-build (the repo already ships jni/Android.mk).           #
+  # ndk-build outputs to:  libs/<abi>/libretro.so                     #
+  # We rename it to the RetroArch convention before uploading.        #
   # ------------------------------------------------------------------ #
   build-android:
     name: Android ${{ matrix.abi }}
@@ -130,66 +134,51 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - abi: arm64-v8a
-            platform: android-arm64
-            ndk_target: aarch64-linux-android
-            artifact_suffix: arm64-v8a
-
-          - abi: armeabi-v7a
-            platform: android-arm
-            ndk_target: armv7a-linux-androideabi
-            artifact_suffix: armeabi-v7a
-
-          - abi: x86_64
-            platform: android-x86_64
-            ndk_target: x86_64-linux-android
-            artifact_suffix: x86_64
-
-    env:
-      ANDROID_API: 21           # minimum API level for 64-bit ABIs; fine for armeabi-v7a too
-      NDK_VERSION: "26.3.11579264"   # pinned LTS NDK; update if needed
+        abi:
+          - arm64-v8a
+          - armeabi-v7a
+          - x86_64
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # The GitHub-hosted ubuntu-latest runner ships the Android SDK
-      # command-line tools.  We just need to install the NDK.
-      - name: Install NDK ${{ env.NDK_VERSION }}
+      # ubuntu-latest ships the Android SDK + cmdline-tools.
+      # We install a pinned NDK then run ndk-build directly.
+      - name: Install NDK
         run: |
+          NDK_VER="26.3.11579264"
           yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
-            "ndk;${{ env.NDK_VERSION }}" 2>&1 | tail -5
-          echo "NDK_ROOT=${ANDROID_HOME}/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+            "ndk;${NDK_VER}" 2>&1 | tail -3
+          echo "NDK_ROOT=${ANDROID_HOME}/ndk/${NDK_VER}" >> $GITHUB_ENV
 
-      - name: Install build tools
+      - name: Install make
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends make
+
+      # ndk-build reads jni/Android.mk and jni/Application.mk.
+      # We override APP_ABI on the command line so only one ABI is built
+      # per matrix job (faster, cleaner artifacts).
+      # APP_PLATFORM=android-21 covers all three target ABIs.
+      - name: Build with ndk-build
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends make
+          ${NDK_ROOT}/ndk-build \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=jni/Android.mk \
+            APP_ABI="${{ matrix.abi }}" \
+            APP_PLATFORM=android-21 \
+            APP_OPTIM=release \
+            -j$(nproc)
 
-      - name: Set up NDK toolchain env
-        run: |
-          TOOLCHAIN=${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64
-          echo "CC=${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${ANDROID_API}-clang"   >> $GITHUB_ENV
-          echo "CXX=${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${ANDROID_API}-clang++" >> $GITHUB_ENV
-          echo "AR=${TOOLCHAIN}/bin/llvm-ar"     >> $GITHUB_ENV
-          echo "RANLIB=${TOOLCHAIN}/bin/llvm-ranlib" >> $GITHUB_ENV
-          echo "STRIP=${TOOLCHAIN}/bin/llvm-strip"   >> $GITHUB_ENV
-
-      - name: Build
-        run: |
-          make -f Makefile.libretro \
-               platform=${{ matrix.platform }} \
-               CC="${CC}" CXX="${CXX}" AR="${AR}" RANLIB="${RANLIB}" STRIP="${STRIP}" \
-               -j$(nproc)
-
+      # ndk-build puts the result at:  libs/<abi>/libretro.so
+      # RetroArch on Android expects:  fceumm_libretro_android.so
+      # We add the ABI suffix so all three don't overwrite each other.
       - name: Rename artifact
         run: |
-          mv fceumm_libretro.so \
-             fceumm_libretro_android_${{ matrix.artifact_suffix }}.so
+          cp libs/${{ matrix.abi }}/libretro.so \
+             fceumm_libretro_android_${{ matrix.abi }}.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fceumm_libretro_android_${{ matrix.artifact_suffix }}
-          path: fceumm_libretro_android_${{ matrix.artifact_suffix }}.so
+          name: fceumm_libretro_android_${{ matrix.abi }}
+          path: fceumm_libretro_android_${{ matrix.abi }}.so
