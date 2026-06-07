@@ -4,6 +4,9 @@
 #   • Windows 64-bit  (MinGW cross-compile on Ubuntu)
 #   • Windows 32-bit  (MinGW cross-compile on Ubuntu)
 #   • Linux 64-bit
+#   • Android arm64-v8a
+#   • Android armeabi-v7a
+#   • Android x86_64
 #
 # Artifacts are uploaded so you can download them directly from the
 # GitHub Actions run page without needing a release.
@@ -116,3 +119,77 @@ jobs:
         with:
           name: fceumm_libretro_linux64
           path: fceumm_libretro.so
+
+  # ------------------------------------------------------------------ #
+  # Android — three ABI jobs sharing the same NDK setup via a matrix  #
+  # ------------------------------------------------------------------ #
+  build-android:
+    name: Android ${{ matrix.abi }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            platform: android-arm64
+            ndk_target: aarch64-linux-android
+            artifact_suffix: arm64-v8a
+
+          - abi: armeabi-v7a
+            platform: android-arm
+            ndk_target: armv7a-linux-androideabi
+            artifact_suffix: armeabi-v7a
+
+          - abi: x86_64
+            platform: android-x86_64
+            ndk_target: x86_64-linux-android
+            artifact_suffix: x86_64
+
+    env:
+      ANDROID_API: 21           # minimum API level for 64-bit ABIs; fine for armeabi-v7a too
+      NDK_VERSION: "26.3.11579264"   # pinned LTS NDK; update if needed
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The GitHub-hosted ubuntu-latest runner ships the Android SDK
+      # command-line tools.  We just need to install the NDK.
+      - name: Install NDK ${{ env.NDK_VERSION }}
+        run: |
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "ndk;${{ env.NDK_VERSION }}" 2>&1 | tail -5
+          echo "NDK_ROOT=${ANDROID_HOME}/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends make
+
+      - name: Set up NDK toolchain env
+        run: |
+          TOOLCHAIN=${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64
+          echo "CC=${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${ANDROID_API}-clang"   >> $GITHUB_ENV
+          echo "CXX=${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${ANDROID_API}-clang++" >> $GITHUB_ENV
+          echo "AR=${TOOLCHAIN}/bin/llvm-ar"     >> $GITHUB_ENV
+          echo "RANLIB=${TOOLCHAIN}/bin/llvm-ranlib" >> $GITHUB_ENV
+          echo "STRIP=${TOOLCHAIN}/bin/llvm-strip"   >> $GITHUB_ENV
+
+      - name: Build
+        run: |
+          make -f Makefile.libretro \
+               platform=${{ matrix.platform }} \
+               CC="${CC}" CXX="${CXX}" AR="${AR}" RANLIB="${RANLIB}" STRIP="${STRIP}" \
+               -j$(nproc)
+
+      - name: Rename artifact
+        run: |
+          mv fceumm_libretro.so \
+             fceumm_libretro_android_${{ matrix.artifact_suffix }}.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fceumm_libretro_android_${{ matrix.artifact_suffix }}
+          path: fceumm_libretro_android_${{ matrix.artifact_suffix }}.so
