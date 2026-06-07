@@ -123,9 +123,9 @@ jobs:
   # ------------------------------------------------------------------ #
   # Android — arm64-v8a / armeabi-v7a / x86_64                        #
   #                                                                    #
-  # Cross-compiles with the NDK Clang toolchain via Makefile.libretro #
-  # (platform=android).  Output: fceumm_libretro.so                   #
-  # Each ABI is a separate matrix job; artifact names are unique.     #
+  # Cross-compiles with the NDK Clang toolchain via Makefile.libretro.#
+  # After build, we find the produced .so (name varies by platform    #
+  # string) and copy it to a known output name before uploading.      #
   # ------------------------------------------------------------------ #
   build-android:
     name: Android ${{ matrix.abi }}
@@ -176,10 +176,25 @@ jobs:
             STRIP="${TOOLCHAIN}/bin/llvm-strip" \
             -j$(nproc)
 
-      # The Makefile outputs fceumm_libretro.so for platform=android.
-      # Upload it under a unique artifact name per ABI — no rename needed.
+      # The Makefile may name the output differently depending on the
+      # platform string (e.g. fceumm_libretro_android.so or similar).
+      # Find it, print it so it appears in the log, then copy to a
+      # stable name that the upload step can rely on.
+      - name: Locate and stage artifact
+        run: |
+          echo "--- all .so files after build ---"
+          find . -maxdepth 2 -name "*.so" | sort
+          echo "---------------------------------"
+          SO=$(find . -maxdepth 2 -name "*.so" | head -1)
+          if [ -z "$SO" ]; then
+            echo "ERROR: no .so produced by the build"
+            exit 1
+          fi
+          cp "$SO" fceumm_libretro_${{ matrix.artifact_suffix }}.so
+          echo "Staged: $SO → fceumm_libretro_${{ matrix.artifact_suffix }}.so"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: fceumm_libretro_${{ matrix.artifact_suffix }}
-          path: fceumm_libretro.so
+          path: fceumm_libretro_${{ matrix.artifact_suffix }}.so
