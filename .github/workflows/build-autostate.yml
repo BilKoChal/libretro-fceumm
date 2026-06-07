@@ -1,0 +1,118 @@
+# .github/workflows/build-autostate.yml
+#
+# Builds the patched fceumm_libretro core for:
+#   • Windows 64-bit  (MinGW cross-compile on Ubuntu)
+#   • Windows 32-bit  (MinGW cross-compile on Ubuntu)
+#   • Linux 64-bit
+#
+# Artifacts are uploaded so you can download them directly from the
+# GitHub Actions run page without needing a release.
+#
+# Trigger: every push and pull-request, plus manual dispatch.
+
+name: Build fceumm autostate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:      # allows one-click manual runs from the Actions tab
+
+jobs:
+  # ------------------------------------------------------------------ #
+  # Windows 64-bit (MinGW cross-compile)                               #
+  # ------------------------------------------------------------------ #
+  build-win64:
+    name: Windows x64 (MinGW)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install MinGW-w64 toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mingw-w64-x86-64 \
+            g++-mingw-w64-x86-64 \
+            make
+
+      - name: Build
+        run: |
+          make -f Makefile.libretro \
+               platform=windows_x86_64 \
+               CC=x86_64-w64-mingw32-gcc \
+               CXX=x86_64-w64-mingw32-g++ \
+               -j$(nproc)
+
+      - name: Rename artifact
+        run: mv fceumm_libretro.dll fceumm_libretro_win64.dll 2>/dev/null || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fceumm_libretro_win64
+          path: fceumm_libretro_win64.dll
+
+  # ------------------------------------------------------------------ #
+  # Windows 32-bit (MinGW cross-compile)                               #
+  # ------------------------------------------------------------------ #
+  build-win32:
+    name: Windows x86 (MinGW)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install MinGW-w64 toolchain (32-bit)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mingw-w64-i686 \
+            g++-mingw-w64-i686 \
+            make
+
+      - name: Build
+        run: |
+          make -f Makefile.libretro \
+               platform=windows_x86 \
+               CC=i686-w64-mingw32-gcc \
+               CXX=i686-w64-mingw32-g++ \
+               -j$(nproc)
+
+      - name: Rename artifact
+        run: mv fceumm_libretro.dll fceumm_libretro_win32.dll 2>/dev/null || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fceumm_libretro_win32
+          path: fceumm_libretro_win32.dll
+
+  # ------------------------------------------------------------------ #
+  # Linux 64-bit                                                       #
+  # ------------------------------------------------------------------ #
+  build-linux64:
+    name: Linux x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            make
+
+      - name: Build
+        run: |
+          make -f Makefile.libretro \
+               platform=unix \
+               -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fceumm_libretro_linux64
+          path: fceumm_libretro.so
