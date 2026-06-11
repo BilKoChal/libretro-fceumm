@@ -202,27 +202,27 @@ static const uint32_t powerpadmap[] = {
 };
 
 static const uint32_t fkbmap[0x48] = {
-	RETROK_F1,RETROK_F2,RETROK_F3,RETROK_F4,RETROK_F5,RETROK_F6,RETROK_F7,RETROK_F8,
-	RETROK_1,RETROK_2,RETROK_3,RETROK_4,RETROK_5,RETROK_6,RETROK_7,RETROK_8,RETROK_9,RETROK_0,RETROK_MINUS,RETROK_EQUALS,RETROK_BACKSLASH,RETROK_BACKSPACE,
-	RETROK_ESCAPE,RETROK_q,RETROK_w,RETROK_e,RETROK_r,RETROK_t,RETROK_y,RETROK_u,RETROK_i,RETROK_o,RETROK_p,RETROK_TILDE,RETROK_LEFTBRACKET,RETROK_RETURN,
-	RETROK_LCTRL,RETROK_a,RETROK_s,RETROK_d,RETROK_f,RETROK_g,RETROK_h,RETROK_j,RETROK_k,RETROK_l,RETROK_SEMICOLON,RETROK_QUOTE,RETROK_RIGHTBRACKET,RETROK_INSERT,
-	RETROK_LSHIFT,RETROK_z,RETROK_x,RETROK_c,RETROK_v,RETROK_b,RETROK_n,RETROK_m,RETROK_COMMA,RETROK_PERIOD,RETROK_SLASH,RETROK_RALT,RETROK_RSHIFT,RETROK_LALT,RETROK_SPACE,
-	RETROK_DELETE,RETROK_END,RETROK_PAGEDOWN,
-	RETROK_UP,RETROK_LEFT,RETROK_RIGHT,RETROK_DOWN
+        RETROK_F1,RETROK_F2,RETROK_F3,RETROK_F4,RETROK_F5,RETROK_F6,RETROK_F7,RETROK_F8,
+        RETROK_1,RETROK_2,RETROK_3,RETROK_4,RETROK_5,RETROK_6,RETROK_7,RETROK_8,RETROK_9,RETROK_0,RETROK_MINUS,RETROK_EQUALS,RETROK_BACKSLASH,RETROK_BACKSPACE,
+        RETROK_ESCAPE,RETROK_q,RETROK_w,RETROK_e,RETROK_r,RETROK_t,RETROK_y,RETROK_u,RETROK_i,RETROK_o,RETROK_p,RETROK_TILDE,RETROK_LEFTBRACKET,RETROK_RETURN,
+        RETROK_LCTRL,RETROK_a,RETROK_s,RETROK_d,RETROK_f,RETROK_g,RETROK_h,RETROK_j,RETROK_k,RETROK_l,RETROK_SEMICOLON,RETROK_QUOTE,RETROK_RIGHTBRACKET,RETROK_INSERT,
+        RETROK_LSHIFT,RETROK_z,RETROK_x,RETROK_c,RETROK_v,RETROK_b,RETROK_n,RETROK_m,RETROK_COMMA,RETROK_PERIOD,RETROK_SLASH,RETROK_RALT,RETROK_RSHIFT,RETROK_LALT,RETROK_SPACE,
+        RETROK_DELETE,RETROK_END,RETROK_PAGEDOWN,
+        RETROK_UP,RETROK_LEFT,RETROK_RIGHT,RETROK_DOWN
 };
 
 static const uint32_t suborkbmap[0x65] = {
-	RETROK_ESCAPE,RETROK_F1,RETROK_F2,RETROK_F3,RETROK_F4,RETROK_F5,RETROK_F6,RETROK_F7,RETROK_F8,RETROK_F9,
-	RETROK_F10,RETROK_F11,RETROK_F12,RETROK_NUMLOCK,RETROK_CARET,RETROK_1,RETROK_2,RETROK_3,RETROK_4,RETROK_5,
-	RETROK_6,RETROK_7,RETROK_8,RETROK_9,RETROK_0,RETROK_MINUS,RETROK_EQUALS,RETROK_BACKSPACE,RETROK_INSERT,RETROK_HOME,
-	RETROK_PAGEUP,RETROK_PAUSE,RETROK_KP_DIVIDE,RETROK_KP_MULTIPLY,RETROK_KP_MINUS,RETROK_TAB,RETROK_q,RETROK_w,RETROK_e,RETROK_r,
-	RETROK_t,RETROK_y,RETROK_u,RETROK_i,RETROK_o,RETROK_p,RETROK_LEFTBRACKET,RETROK_RIGHTBRACKET,RETROK_RETURN,RETROK_DELETE,
-	RETROK_END,RETROK_PAGEDOWN,RETROK_KP7,RETROK_KP8,RETROK_KP9,RETROK_KP_PLUS,RETROK_CAPSLOCK,RETROK_a,RETROK_s,RETROK_d,
-	RETROK_f,RETROK_g,RETROK_h,RETROK_j,RETROK_k,RETROK_l,RETROK_SEMICOLON,RETROK_QUOTE,RETROK_KP4,RETROK_KP5,
-	RETROK_KP6,RETROK_LSHIFT,RETROK_z,RETROK_x,RETROK_c,RETROK_v,RETROK_b,RETROK_n,RETROK_m,RETROK_COMMA,
-	RETROK_PERIOD,RETROK_SLASH,RETROK_BACKSLASH,RETROK_UP,RETROK_KP1,RETROK_KP2,RETROK_KP3,RETROK_LCTRL,RETROK_LALT,RETROK_SPACE,
-	RETROK_LEFT,RETROK_DOWN,RETROK_RIGHT,RETROK_KP0,RETROK_KP_PERIOD,RETROK_UNKNOWN,RETROK_UNKNOWN,RETROK_UNKNOWN,RETROK_UNKNOWN,RETROK_UNKNOWN,
-	RETROK_UNKNOWN
+        RETROK_ESCAPE,RETROK_F1,RETROK_F2,RETROK_F3,RETROK_F4,RETROK_F5,RETROK_F6,RETROK_F7,RETROK_F8,RETROK_F9,
+        RETROK_F10,RETROK_F11,RETROK_F12,RETROK_NUMLOCK,RETROK_CARET,RETROK_1,RETROK_2,RETROK_3,RETROK_4,RETROK_5,
+        RETROK_6,RETROK_7,RETROK_8,RETROK_9,RETROK_0,RETROK_MINUS,RETROK_EQUALS,RETROK_BACKSPACE,RETROK_INSERT,RETROK_HOME,
+        RETROK_PAGEUP,RETROK_PAUSE,RETROK_KP_DIVIDE,RETROK_KP_MULTIPLY,RETROK_KP_MINUS,RETROK_TAB,RETROK_q,RETROK_w,RETROK_e,RETROK_r,
+        RETROK_t,RETROK_y,RETROK_u,RETROK_i,RETROK_o,RETROK_p,RETROK_LEFTBRACKET,RETROK_RIGHTBRACKET,RETROK_RETURN,RETROK_DELETE,
+        RETROK_END,RETROK_PAGEDOWN,RETROK_KP7,RETROK_KP8,RETROK_KP9,RETROK_KP_PLUS,RETROK_CAPSLOCK,RETROK_a,RETROK_s,RETROK_d,
+        RETROK_f,RETROK_g,RETROK_h,RETROK_j,RETROK_k,RETROK_l,RETROK_SEMICOLON,RETROK_QUOTE,RETROK_KP4,RETROK_KP5,
+        RETROK_KP6,RETROK_LSHIFT,RETROK_z,RETROK_x,RETROK_c,RETROK_v,RETROK_b,RETROK_n,RETROK_m,RETROK_COMMA,
+        RETROK_PERIOD,RETROK_SLASH,RETROK_BACKSLASH,RETROK_UP,RETROK_KP1,RETROK_KP2,RETROK_KP3,RETROK_LCTRL,RETROK_LALT,RETROK_SPACE,
+        RETROK_LEFT,RETROK_DOWN,RETROK_RIGHT,RETROK_KP0,RETROK_KP_PERIOD,RETROK_UNKNOWN,RETROK_UNKNOWN,RETROK_UNKNOWN,RETROK_UNKNOWN,RETROK_UNKNOWN,
+        RETROK_UNKNOWN
 };
 
 
@@ -2484,7 +2484,7 @@ static void add_powerpad_input(unsigned port, uint32_t variant, uint32_t *ppdata
    unsigned k;
    const uint32_t* map = powerpadmap;
    for (k = 0 ; k < 12 ; k++)
-   	if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, map[k]))
+        if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, map[k]))
             *ppdata |= (1 << k);
 }
 
@@ -2492,7 +2492,7 @@ static void add_fkb_input(unsigned port, uint32_t variant, uint8_t *fkbkeys) {
    unsigned k;
    const uint32_t* map = fkbmap;
    for (k = 0 ; k < 0x48 ; k++)
-   	if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, map[k]))
+        if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, map[k]))
             fkbkeys[k]=1;
         else
             fkbkeys[k]=0;
@@ -2502,7 +2502,7 @@ static void add_suborkey_input(unsigned port, uint32_t variant, uint8_t *suborke
    unsigned k;
    const uint32_t* map = suborkbmap;
    for (k = 0 ; k < 0x65 ; k++)
-   	if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, map[k]))
+        if (input_cb(0, RETRO_DEVICE_KEYBOARD, 0, map[k]))
             suborkeys[k]=1;
         else
             suborkeys[k]=0;
@@ -2600,7 +2600,7 @@ static void get_mouse_input(unsigned port, uint32_t variant, uint32_t *mousedata
                 right edge: 64
              
                 increase movement by 10 to allow edges to be reached in case of problems
-	     */
+             */
              raw = (raw - 128) * 140 / 128 + 128;
              if (raw < 0)
                  raw = 0;
@@ -2874,11 +2874,11 @@ static void FCEUD_UpdateInput(void)
          break;
       case RETRO_DEVICE_FC_FKB:
          add_fkb_input(4, nes_input.type[4], nes_input.FamilyKeyboardData);
-	 break;
+         break;
       case RETRO_DEVICE_FC_SUBORKB:
       case RETRO_DEVICE_FC_PEC586KB:
          add_suborkey_input(4, nes_input.type[4], nes_input.SuborKeyboardData);
-	 break;
+         break;
    }
 
    if (input_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R2))
@@ -3144,6 +3144,7 @@ static void retro_run_blit(uint8_t *gfx)
 #define AUTOLOAD_MAX_PATHS 16  /* max number of save_path entries in the config */
 
 static bool autoload_state_pending      = false;
+static bool autoload_hotkey_pending     = false;  /* Num1 pressed → reset + autoload */
 static char autoload_dir[AUTOLOAD_MAX_PATH]      = {0};   /* folder the core lives in */
 static char autoload_rom_path[AUTOLOAD_MAX_PATH] = {0};   /* full path of the loaded ROM   */
 static char autoload_core_name[64]      = {0};   /* this core's file name, no ext */
@@ -3577,6 +3578,24 @@ void retro_run(void)
    {
       autoload_state_pending = false;
       autoload_try_load_state();
+   }
+
+   /* ---- Hotkey: Numpad 1 → reset game + autoload save state ---- */
+   if (autoload_hotkey_pending)
+   {
+      autoload_hotkey_pending = false;
+      autoload_logf("HOTKEY        : Num1 pressed — resetting game + autoload");
+      retro_reset();
+      autoload_state_pending = true;
+      /* autoload_try_load_state() will run on the next frame */
+      return;
+   }
+   {
+      static bool num1_was_pressed = false;
+      bool num1_is_pressed = input_cb(0, RETRO_DEVICE_KEYBOARD, 0, RETROK_KP1);
+      if (num1_is_pressed && !num1_was_pressed && autoload_rom_path[0] != '\0')
+         autoload_hotkey_pending = true;
+      num1_was_pressed = num1_is_pressed;
    }
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
