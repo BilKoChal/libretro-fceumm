@@ -127,6 +127,14 @@ jobs:
   # it falls through to unix. We use platform=unix with the NDK       #
   # Clang toolchain overriding CC/CXX, and override SHARED to drop    #
   # the version-script (Android linker does not support it).          #
+  # -ldl links libdl which provides dladdr() used by the autoload     #
+  # block to locate the core's own .so path at runtime.               #
+  # -static-libstdc++ statically links libc++ so the core won't       #
+  #   depend on libc++_shared.so at runtime (which is missing         #
+  #   on most Android devices when loading libretro cores).           #
+  #                                                                    #
+  # NDK discovery: instead of hard-coding a version that may not be   #
+  # available, we find the latest installed NDK on the runner.        #
   # ------------------------------------------------------------------ #
   build-android:
     name: Android ${{ matrix.abi }}
@@ -150,23 +158,49 @@ jobs:
 
     env:
       ANDROID_API: 21
-      NDK_VERSION: "26.3.11579264"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install NDK
+      - name: Setup NDK
         run: |
-          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
-            "ndk;${{ env.NDK_VERSION }}" 2>&1 | tail -3
-          echo "NDK_ROOT=${ANDROID_HOME}/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+          # Try to find an already-installed NDK with a valid toolchain
+          for ndk_dir in ${ANDROID_HOME}/ndk/*/; do
+            if [ -f "${ndk_dir}toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ]; then
+              echo "NDK_ROOT=${ndk_dir%/}" >> $GITHUB_ENV
+              echo "Found pre-installed NDK: ${ndk_dir%/}"
+              exit 0
+            fi
+          done
+
+          # No usable NDK found — install one via sdkmanager
+          # First locate sdkmanager (path varies between runner images)
+          SDKMANAGER=$(find "${ANDROID_HOME}" -name "sdkmanager" -type f 2>/dev/null | head -1)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: No sdkmanager found and no NDK pre-installed"
+            exit 1
+          fi
+
+          echo "Installing NDK via: $SDKMANAGER"
+          # Install a widely-available NDK version
+          yes | "$SDKMANAGER" "ndk;27.0.12077973" 2>&1 | tail -5
+
+          NDK_ROOT="${ANDROID_HOME}/ndk/27.0.12077973"
+          if [ ! -f "${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ]; then
+            echo "ERROR: NDK installation failed — clang not found"
+            exit 1
+          fi
+
+          echo "NDK_ROOT=${NDK_ROOT}" >> $GITHUB_ENV
+          echo "Installed NDK: ${NDK_ROOT}"
 
       - name: Install make
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends make
 
       - name: Build
         run: |
+          echo "Using NDK_ROOT=$NDK_ROOT"
           TOOLCHAIN=${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64
           CC="${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${{ env.ANDROID_API }}-clang"
           CXX="${TOOLCHAIN}/bin/${{ matrix.ndk_target }}${{ env.ANDROID_API }}-clang++"
@@ -174,8 +208,19 @@ jobs:
           RANLIB="${TOOLCHAIN}/bin/llvm-ranlib"
           STRIP="${TOOLCHAIN}/bin/llvm-strip"
 
+          # Verify the compiler actually exists before starting the build
+          if [ ! -f "$CC" ]; then
+            echo "ERROR: Compiler not found: $CC"
+            echo "Listing available compilers:"
+            ls -la "${TOOLCHAIN}/bin/"*clang* || true
+            exit 1
+          fi
+
           # platform=unix sets TARGET=fceumm_libretro.so and fpic=-fPIC
           # We override SHARED: Android linker doesn't support --version-script
+          # -ldl is essential for dladdr() used by autoload self-detection
+          # -static-libstdc++ statically links libc++ so the core won't
+          #   depend on libc++_shared.so at runtime.
           make -f Makefile.libretro \
             platform=unix \
             CC="$CC" \
@@ -184,6 +229,7 @@ jobs:
             RANLIB="$RANLIB" \
             STRIP="$STRIP" \
             SHARED="-shared -fPIC" \
+            LDFLAGS="-ldl -static-libstdc++" \
             -j$(nproc)
 
       - name: Stage artifact
